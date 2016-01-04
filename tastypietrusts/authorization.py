@@ -43,14 +43,12 @@ class DjangoObjectAuthorization(Authorization):
                 get_module_name(klass._meta)
             )
 
-            results = []
-            for obj in obj_list:
-                if request.user.has_perm(permission, obj):
-                    results.add(obj)
-
-            return results
+            if request.user.has_perm(permission, obj_list):
+                return obj_list
         else: # ALLOW_ALL_READ and code == 'read'
             return obj_list
+
+        return obj_list.none()
 
     def perm_obj_checks(self, request, code, obj):
         klass = self.base_checks(request, obj.__class__)
@@ -64,10 +62,12 @@ class DjangoObjectAuthorization(Authorization):
                 get_module_name(klass._meta)
             )
 
-            if not request.user.has_perm(permission, obj):
-                return False
+            if request.user.has_perm(permission, obj):
+                return True
+        else: # ALLOW_ALL_READ and code == 'read'
+            return True
 
-        return True
+        return False
 
     def read_list(self, object_list, bundle):
         return self.perm_list_checks(bundle.request, 'read', object_list)
