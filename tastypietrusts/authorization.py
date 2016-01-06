@@ -18,7 +18,10 @@ class DjangoObjectAuthorization(Authorization):
     setup to handle those checks.
     '''
 
-    ALLOW_ALL_READ = getattr(settings, 'TASTYPIE_ALLOW_ALL_READ', False)
+    # By default, follows `ModelAdmin` "convention" to use `app.change_model`
+    # `django.contrib.auth.models.Permission` for both viewing and updating.
+    # https://docs.djangoproject.com/es/1.9/topics/auth/default/#permissions-and-authorization
+    READ_PERM_CODE = getattr(settings, 'TASTYPIE_READ_PERM_CODE', 'change')
 
     def base_checks(self, request, model_klass):
         # If it doesn't look like a model, we can't check permissions.
@@ -36,16 +39,13 @@ class DjangoObjectAuthorization(Authorization):
         if klass is False:
             raise Unauthorized("You are not allowed to access that resource.")
 
-        if not self.ALLOW_ALL_READ or code != 'read':
-            permission = '%s.%s_%s' % (
-                klass._meta.app_label,
-                code,
-                get_module_name(klass._meta)
-            )
+        permission = '%s.%s_%s' % (
+            klass._meta.app_label,
+            code,
+            get_module_name(klass._meta)
+        )
 
-            if request.user.has_perm(permission, obj_list):
-                return obj_list
-        else: # ALLOW_ALL_READ and code == 'read'
+        if request.user.has_perm(permission, obj_list):
             return obj_list
 
         return obj_list.none()
@@ -55,25 +55,22 @@ class DjangoObjectAuthorization(Authorization):
         if klass is False:
             raise Unauthorized("You are not allowed to access that resource.")
 
-        if not self.ALLOW_ALL_READ or code != 'read':
-            permission = '%s.%s_%s' % (
-                klass._meta.app_label,
-                code,
-                get_module_name(klass._meta)
-            )
+        permission = '%s.%s_%s' % (
+            klass._meta.app_label,
+            code,
+            get_module_name(klass._meta)
+        )
 
-            if request.user.has_perm(permission, obj):
-                return True
-        else: # ALLOW_ALL_READ and code == 'read'
+        if request.user.has_perm(permission, obj):
             return True
 
         return False
 
     def read_list(self, object_list, bundle):
-        return self.perm_list_checks(bundle.request, 'read', object_list)
+        return self.perm_list_checks(bundle.request, self.READ_PERM_CODE, object_list)
 
     def read_detail(self, object_list, bundle):
-        return self.perm_obj_checks(bundle.request, 'read', bundle.obj)
+        return self.perm_obj_checks(bundle.request, self.READ_PERM_CODE, bundle.obj)
 
     def create_list(self, object_list, bundle):
         return self.perm_list_checks(bundle.request, 'add', object_list)
